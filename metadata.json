@@ -1,0 +1,6 @@
+
+{
+  "name": "AI Teaching Assistant - Formative Assessment",
+  "description": "An intelligent web application that automates assessment generation, evaluation, and performance tracking using the Gemini API to provide instant feedback and analytics for teachers and students.",
+  "requestFramePermissions": []
+}
