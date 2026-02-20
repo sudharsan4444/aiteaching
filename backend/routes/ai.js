@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/authMiddleware');
-const { generateContent, generateQuiz, evaluateSubmission } = require('../services/geminiService');
+const { generateContent, generateQuiz, evaluateSubmission } = require('../services/aiService');
 const { queryContext } = require('../services/ragService');
 const Submission = require('../models/Submission');
 

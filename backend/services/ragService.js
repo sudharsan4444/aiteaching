@@ -1,7 +1,7 @@
 const { Pinecone } = require('@pinecone-database/pinecone');
 const fs = require('fs');
 const pdf = require('pdf-parse');
-const { getEmbedding } = require('./geminiService');
+const { getEmbedding } = require('./aiService');
 
 const pinecone = new Pinecone({
     apiKey: process.env.PINECONE_API_KEY

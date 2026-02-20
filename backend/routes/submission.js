@@ -3,7 +3,7 @@ const router = express.Router();
 const Submission = require('../models/Submission');
 const Assessment = require('../models/Assessment');
 const { protect, authorize } = require('../middleware/authMiddleware');
-const { evaluateSubmission } = require('../services/geminiService');
+const { evaluateSubmission } = require('../services/aiService');
 
 // @route   POST /api/submissions/start
 // @desc    Start an assessment (Create IN_PROGRESS submission)
