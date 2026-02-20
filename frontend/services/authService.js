@@ -2,7 +2,7 @@ import api from './api';
 import { mockAuth } from '../mockData';
 
 // Set to true for frontend-only testing without backend
-const USE_MOCK_MODE = true;
+const USE_MOCK_MODE = false;
 
 const register = async (userData) => {
     if (USE_MOCK_MODE) {

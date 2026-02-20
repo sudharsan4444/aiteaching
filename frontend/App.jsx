@@ -13,7 +13,7 @@ import api from './services/api';
 import { mockAssessments, mockSubmissions, mockMaterials, mockStudents, mockGrades } from './mockData';
 
 // Set to true for frontend-only testing
-const USE_MOCK_DATA = true;
+const USE_MOCK_DATA = false;
 
 const App = () => {
   const [user, setUser] = useState(null);
