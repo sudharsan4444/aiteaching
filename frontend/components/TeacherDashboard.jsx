@@ -5,7 +5,7 @@ import SubmissionReview from './SubmissionReview';
 import TeacherStudents from './TeacherStudents';
 import MaterialUpload from './MaterialUpload';
 
-const TeacherDashboard = ({ user, assessments, submissions, onAddAssessment }) => {
+const TeacherDashboard = ({ user, assessments, submissions, onAddAssessment, onUpdateAssessment }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedMaterialId, setSelectedMaterialId] = useState('');
@@ -90,6 +90,57 @@ const TeacherDashboard = ({ user, assessments, submissions, onAddAssessment }) =
     }
   };
 
+  const handleTogglePublish = async (assessmentId, currentStatus) => {
+    try {
+      const res = await api.put(`/assessments/${assessmentId}/publish`, { isPublished: !currentStatus });
+      // Update local assessments state
+      if (onUpdateAssessment) {
+        onUpdateAssessment(res.data);
+      } else {
+        // Fallback if prop not provided (though it should be)
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('Failed to update publication status', err);
+      alert('Failed to update publication status');
+    }
+  };
+
+  const handleDeleteAssessment = async (assessmentId) => {
+    if (!window.confirm('Are you sure you want to delete this assessment? This will also clear all student submissions and results for this assessment. This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/assessments/${assessmentId}`);
+
+      // Update local assessments state (Dashboard list)
+      // Note: assessments prop comes from parent, so we should call a parent update if possible
+      // or just reload if we don't have a direct setter. 
+      // Based on handleTogglePublish calling onUpdateAssessment, we might need a way to remove.
+      // Since onAddAssessment exists, maybe onRemoveAssessment?
+      // Let's check available props or just reload for simplicity if state management is prop-heavy.
+
+      // Better way: if onAddAssessment exists, maybe we can trigger a refresh via parent.
+      // But for now, let's look at how onUpdateAssessment is used.
+
+      if (onUpdateAssessment) {
+        // We'll pass null or a special flag to tell parent to remove it, 
+        // OR better: the parent should just re-fetch.
+        // If we don't have a direct way, we can filter materialAssessments for the Results tab
+        setMaterialAssessments(prev => prev.filter(a => a._id !== assessmentId));
+
+        // For the main assessments list, we'll try to trigger a refresh
+        window.location.reload();
+      } else {
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('Failed to delete assessment', err);
+      alert('Failed to delete assessment: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
   const averageScoresByAssessment = assessments.map(a => {
     const subs = submissions.filter(s => s.assessmentId === a._id);
     const avg = subs.length > 0 ? subs.reduce((sum, s) => sum + s.score, 0) / subs.length : 0;
@@ -102,6 +153,9 @@ const TeacherDashboard = ({ user, assessments, submissions, onAddAssessment }) =
         assessment={reviewingAssessment}
         submissions={submissions}
         onBack={() => setReviewingAssessment(null)}
+        onUpdateAssessment={(updated) => {
+          if (onUpdateAssessment) onUpdateAssessment(updated);
+        }}
       />
     );
   }
@@ -292,8 +346,22 @@ const TeacherDashboard = ({ user, assessments, submissions, onAddAssessment }) =
                         >
                           <i className="fas fa-key"></i>
                         </button>
+                        <button
+                          onClick={() => handleTogglePublish(a._id, a.isPublished)}
+                          className={`p-2 transition-colors ${a.isPublished ? 'text-emerald-500 hover:text-emerald-700' : 'text-slate-300 hover:text-indigo-500'}`}
+                          title={a.isPublished ? "Results Published (Click to Hide)" : "Publish Results to Students"}
+                        >
+                          <i className={`fas fa-${a.isPublished ? 'check-circle' : 'bullhorn'}`}></i>
+                        </button>
                         <button onClick={() => setReviewingAssessment(a)} className="text-slate-400 hover:text-emerald-600 p-2" title="Review Submissions">
                           <i className="fas fa-eye"></i>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAssessment(a._id)}
+                          className="text-slate-400 hover:text-red-500 p-2 transition-colors"
+                          title="Delete Assessment and All Results"
+                        >
+                          <i className="fas fa-trash-alt"></i>
                         </button>
                       </div>
                     </div>
@@ -357,10 +425,24 @@ const TeacherDashboard = ({ user, assessments, submissions, onAddAssessment }) =
                         <span>Answer Key</span>
                       </button>
                       <button
+                        onClick={() => handleTogglePublish(a._id, a.isPublished)}
+                        className={`p-2 transition-colors ${a.isPublished ? 'text-emerald-500 hover:text-emerald-700' : 'text-slate-300 hover:text-indigo-500'}`}
+                        title={a.isPublished ? "Results Published (Click to Hide)" : "Publish Results to Students"}
+                      >
+                        <i className={`fas fa-${a.isPublished ? 'check-circle' : 'bullhorn'}`}></i>
+                      </button>
+                      <button
                         onClick={() => setReviewingAssessment(a)}
                         className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all"
                       >
                         <i className="fas fa-eye mr-2"></i>View Submissions
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAssessment(a._id)}
+                        className="bg-red-50 text-red-600 p-2 rounded-lg hover:bg-red-100 transition-all"
+                        title="Delete Assessment and All Results"
+                      >
+                        <i className="fas fa-trash-alt"></i>
                       </button>
                     </div>
                   </div>

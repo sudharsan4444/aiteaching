@@ -1,7 +1,7 @@
 
 import React from 'react';
 
-const Navigation = ({ user, onLogout }) => {
+const Navigation = ({ user, onLogout, isTestActive }) => {
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -17,13 +17,15 @@ const Navigation = ({ user, onLogout }) => {
             <span className="text-sm font-medium text-slate-700">{user.name}</span>
             <span className="text-xs text-indigo-600 font-semibold">{user.role}</span>
           </div>
-          <button
-            onClick={onLogout}
-            className="flex items-center space-x-2 px-4 py-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <i className="fas fa-sign-out-alt"></i>
-            <span className="hidden sm:inline">Logout</span>
-          </button>
+          {!isTestActive && (
+            <button
+              onClick={onLogout}
+              className="flex items-center space-x-2 px-4 py-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <i className="fas fa-sign-out-alt"></i>
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

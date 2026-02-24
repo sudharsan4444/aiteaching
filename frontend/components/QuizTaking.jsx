@@ -49,6 +49,10 @@ const QuizTaking = ({ user, assessment, submissionId, onSubmit, onCancel }) => {
     setAnswers(prev => ({ ...prev, [currentQ.id]: val }));
   };
 
+  const handleQuizCancel = () => {
+    if (onCancel) onCancel();
+  };
+
   const doSubmit = async () => {
     if (isSubmitting) return;
     clearInterval(timerRef.current);
@@ -100,7 +104,7 @@ const QuizTaking = ({ user, assessment, submissionId, onSubmit, onCancel }) => {
               >
                 I'm Ready to Start
               </button>
-              <button onClick={onCancel} className="text-slate-400 font-bold hover:text-slate-600 transition-colors py-2">
+              <button onClick={handleQuizCancel} className="text-slate-400 font-bold hover:text-slate-600 transition-colors py-2">
                 Go Back
               </button>
             </div>

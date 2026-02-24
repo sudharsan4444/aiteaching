@@ -5,7 +5,7 @@ import MaterialLibrary from './MaterialLibrary';
 import StudentResults from './StudentResults';
 import api from '../services/api';
 
-const StudentDashboard = ({ user, assessments, submissions, onSubmitQuiz }) => {
+const StudentDashboard = ({ user, assessments, submissions, onSubmitQuiz, onTestStateChange }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [activeSubmission, setActiveSubmission] = useState(null);
@@ -13,7 +13,7 @@ const StudentDashboard = ({ user, assessments, submissions, onSubmitQuiz }) => {
   const [visibleAnswerKey, setVisibleAnswerKey] = useState(null); // submission._id whose answer key is shown
 
   const availableQuizzes = assessments.filter(a =>
-    !submissions.find(s => s.assessmentId === a._id && s.studentId === user._id)
+    !submissions.find(s => (s.assessmentId?._id || s.assessmentId) === a._id) && a.status === 'PUBLISHED'
   );
   const completedQuizzes = submissions.filter(s => s.studentId === user._id);
 
@@ -23,6 +23,7 @@ const StudentDashboard = ({ user, assessments, submissions, onSubmitQuiz }) => {
       const response = await api.post('/submissions/start', { assessmentId: assessment._id });
       setActiveSubmission(response.data);
       setActiveQuiz(assessment);
+      onTestStateChange(true); // Signal test active
     } catch (error) {
       console.error("Failed to start quiz", error);
       alert(error.response?.data?.message || "Failed to start quiz (mock mode)");
@@ -35,6 +36,13 @@ const StudentDashboard = ({ user, assessments, submissions, onSubmitQuiz }) => {
     onSubmitQuiz(submission);
     setActiveQuiz(null);
     setActiveSubmission(null);
+    onTestStateChange(false); // Signal test finished
+  };
+
+  const handleQuizCancel = () => {
+    setActiveQuiz(null);
+    setActiveSubmission(null);
+    onTestStateChange(false); // Signal test cancelled
   };
 
   if (activeQuiz && activeSubmission) {
@@ -44,7 +52,7 @@ const StudentDashboard = ({ user, assessments, submissions, onSubmitQuiz }) => {
           user={user}
           assessment={activeQuiz}
           submissionId={activeSubmission._id}
-          onCancel={() => { setActiveQuiz(null); setActiveSubmission(null); }}
+          onCancel={handleQuizCancel}
           onSubmit={handleQuizSubmit}
         />
         {/* AIChat is hidden when hasActiveQuiz=true */}
@@ -152,8 +160,8 @@ const StudentDashboard = ({ user, assessments, submissions, onSubmitQuiz }) => {
                             <button
                               onClick={() => setVisibleAnswerKey(isKeyVisible ? null : s._id)}
                               className={`flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-lg transition-all ${isKeyVisible
-                                  ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                                  : 'bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-700'
+                                ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                                : 'bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-700'
                                 }`}
                             >
                               <i className={`fas fa-${isKeyVisible ? 'eye-slash' : 'key'}`}></i>
@@ -179,8 +187,8 @@ const StudentDashboard = ({ user, assessments, submissions, onSubmitQuiz }) => {
                                       <div className="space-y-1.5">
                                         {q.options.map((opt, optIdx) => (
                                           <div key={optIdx} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${optIdx === q.correctOptionIndex
-                                              ? 'bg-emerald-100 text-emerald-800 font-bold border border-emerald-300'
-                                              : 'text-slate-500'
+                                            ? 'bg-emerald-100 text-emerald-800 font-bold border border-emerald-300'
+                                            : 'text-slate-500'
                                             }`}>
                                             {optIdx === q.correctOptionIndex && (
                                               <i className="fas fa-check-circle text-emerald-600 text-xs"></i>

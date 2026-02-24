@@ -20,7 +20,9 @@ const assessmentSchema = new mongoose.Schema({
     materialId: { type: mongoose.Schema.Types.ObjectId, ref: 'Material' },
     createdAt: { type: Date, default: Date.now },
     dueDate: Date,
-    status: { type: String, enum: ['DRAFT', 'PUBLISHED', 'CLOSED'], default: 'PUBLISHED' }
+    status: { type: String, enum: ['DRAFT', 'PUBLISHED', 'CLOSED'], default: 'PUBLISHED' },
+    isPublished: { type: Boolean, default: false }, // Results visible to students only after publishing
+    answerKeyUrl: String
 });
 
 module.exports = mongoose.model('Assessment', assessmentSchema);

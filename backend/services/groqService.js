@@ -66,10 +66,10 @@ ABSOLUTE RULES — VIOLATING ANY RULE INVALIDATES THE ENTIRE RESPONSE:
 4. NEVER mention the material title, file name, subject code, document name, section number, or page in any question or answer.
 5. MCQ questions MUST have EXACTLY 4 plausible answer options — wrong options should be tempting but clearly incorrect to a student who understood the concept.
 6. Difficulty level: ${difficulty} — Easy=recall+apply, Medium=analyze+evaluate, Hard=synthesize+create connections.
-7. For MCQ: correctOptionIndex is 0-based (0=first option, 1=second, 2=third, 3=fourth).
-8. For DESCRIPTIVE: expectedAnswer must list the KEY CONCEPTS the student must demonstrate understanding of — not a quote from the text.
-9. Each question MUST have a topic field (specific sub-topic or concept being tested, e.g., "Caching Strategies", "OSI Layer 3").
-10. Assign maxPoints: MCQ=5, DESCRIPTIVE=10.
+7. For MCQ: correctOptionIndex is 0-based. MCQ maxPoints is ALWAYS 1.
+8. For DESCRIPTIVE: maxPoints depends on difficulty: Easy=2, Medium=3, Hard=5.
+9. For DESCRIPTIVE: expectedAnswer must list the KEY CONCEPTS and KEYWORDS the student must demonstrate.
+10. Each question MUST have a topic field.
 11. Generate UNIQUE questions different from any previously used ones.
 ${avoidList}
 
@@ -82,9 +82,9 @@ Return ONLY a valid JSON array (no markdown, no explanation). Each element must 
   "options": ["Option A", "Option B", "Option C", "Option D"] (MCQ only — exactly 4),
   "correctOptionIndex": 0 (MCQ only — 0-based index of correct option),
   "expectedAnswer": "Key concepts and understanding the student must demonstrate" (DESCRIPTIVE only),
-  "difficulty": "${difficulty}",
-  "topic": "Specific concept or sub-topic being tested",
-  "maxPoints": 5 or 10
+  "difficulty": "Easy" or "Medium" or "Hard",
+  "topic": "Specific concept",
+  "maxPoints": 1 (for MCQ) or 2/3/5 (for DESCRIPTIVE based on rule 8)
 }`;
 
     const response = await callGroq({
@@ -107,9 +107,7 @@ const evaluateSubmission = async (assessmentTitle, questions, studentAnswers) =>
         type: q.type,
         topic: q.topic || 'General',
         studentAnswer: studentAnswers[q.id],
-        correctAnswer: q.type === 'MCQ'
-            ? q.options[q.correctOptionIndex]
-            : q.expectedAnswer || "Evaluate based on key concepts",
+        referenceAnswer: q.expectedAnswer || "Evaluate based on key concepts",
         maxPoints: q.maxPoints || (q.type === 'MCQ' ? 5 : 10)
     }));
 
@@ -119,18 +117,34 @@ Questions & Answers:
 ${JSON.stringify(promptData, null, 2)}
 
 Grading Protocol:
-1. MCQ: Full marks if correct option selected, 0 otherwise.
-2. DESCRIPTIVE: Award marks proportional to how many key concepts are present. Partial credit for partial answers.
-3. For each question, provide: questionIndex, pointsAwarded, maxPoints, correct (boolean for MCQ), feedback (1-2 sentence explanation).
-4. Compute total "score" as sum of all pointsAwarded.
-5. Provide overall "feedback" as 2-3 sentences summarizing strong points and areas to improve.
+1. MCQ: 1 point if correct, 0 otherwise. Set "correct": true/false.
+2. DESCRIPTIVE: Award marks proportional to keyword presence, concept coverage, and subject relevance.
+3. If the answer is irrelevant or misses major keywords, award 0.
+4. For each DESCRIPTIVE question, provide:
+   - "questionIndex"
+   - "pointsAwarded"
+   - "maxPoints"
+   - "correct": true if pointsAwarded == maxPoints, else false.
+   - "feedback": Specific feedback on what was missing or incorrect.
+   - "keyConcepts": Array of 3-5 critical keywords/concepts that should have been in the answer.
+   - "referenceAnswer": A comprehensive, high-quality model answer to show the student.
+5. Compute total "score" as sum of all pointsAwarded.
+6. Provide overall "feedback" as a professional summary.
 
 Return ONLY valid JSON:
 {
   "score": <total number>,
   "feedback": "<overall feedback>",
   "breakdown": [
-    { "questionIndex": 1, "pointsAwarded": 5, "maxPoints": 5, "correct": true, "feedback": "..." },
+    { 
+      "questionIndex": 1, 
+      "pointsAwarded": 5, 
+      "maxPoints": 5, 
+      "correct": true, 
+      "feedback": "...",
+      "keyConcepts": ["concept1", "concept2"], 
+      "referenceAnswer": "..." 
+    },
     ...
   ]
 }`;
@@ -143,6 +157,7 @@ Return ONLY valid JSON:
 
     return JSON.parse(response.choices[0].message.content);
 };
+
 
 module.exports = {
     getEmbedding,

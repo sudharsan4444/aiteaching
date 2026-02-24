@@ -24,12 +24,21 @@ const StudentResults = ({ user, assessments = [], submissions = [] }) => {
     );
 
     const averagePct = mySubmissions.length > 0
-        ? (mySubmissions.reduce((sum, s) => sum + (s.score / s.maxScore), 0) / mySubmissions.length * 100).toFixed(1)
+        ? (mySubmissions.reduce((sum, s) => {
+            const score = parseFloat(s.score) || 0;
+            const maxScore = parseFloat(s.maxScore) || 1;
+            return sum + (score / maxScore);
+        }, 0) / mySubmissions.length * 100).toFixed(1)
         : '0.0';
 
-    const bestSub = mySubmissions.reduce((best, cur) =>
-        cur.maxScore && (cur.score / cur.maxScore) > (best?.score / best?.maxScore || 0) ? cur : best, null);
-    const bestPct = bestSub ? Math.round((bestSub.score / bestSub.maxScore) * 100) : 0;
+    const bestSub = mySubmissions.reduce((best, cur) => {
+        const bestScore = parseFloat(best?.score) || 0;
+        const bestMax = parseFloat(best?.maxScore) || 1;
+        const curScore = parseFloat(cur?.score) || 0;
+        const curMax = parseFloat(cur?.maxScore) || 1;
+        return (curScore / curMax) > (bestScore / bestMax) ? cur : best;
+    }, null);
+    const bestPct = bestSub ? Math.round((parseFloat(bestSub.score) / (parseFloat(bestSub.maxScore) || 1)) * 100) : 0;
 
     const totalCorrect = mySubmissions.reduce((sum, s) => {
         if (!s.aiFeedbackBreakdown?.breakdown) return sum;
@@ -105,12 +114,14 @@ const StudentResults = ({ user, assessments = [], submissions = [] }) => {
                 <div className="space-y-4">
                     {mySubmissions.map(sub => {
                         const a = sub.assessmentId;
-                        const effectiveScore = sub.teacherOverrideScore ?? sub.score;
-                        const pct = sub.maxScore ? Math.round((effectiveScore / sub.maxScore) * 100) : 0;
+                        const effectiveScore = parseFloat(sub.teacherOverrideScore ?? sub.score) || 0;
+                        const maxScore = parseFloat(sub.maxScore) || 1;
+                        const pct = Math.round((effectiveScore / maxScore) * 100);
                         const breakdown = sub.aiFeedbackBreakdown?.breakdown || [];
                         const correctCount = breakdown.filter(b => b.correct).length;
                         const mcqQs = a?.questions?.filter(q => q.type === 'MCQ') || [];
                         const isExpanded = expandedId === sub._id;
+                        const isPublished = a?.isPublished;
 
                         return (
                             <div key={sub._id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -141,14 +152,21 @@ const StudentResults = ({ user, assessments = [], submissions = [] }) => {
                                                 )}
                                             </div>
                                             <button
-                                                onClick={() => setExpandedId(isExpanded ? null : sub._id)}
-                                                className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1"
+                                                onClick={() => isPublished ? setExpandedId(isExpanded ? null : sub._id) : null}
+                                                disabled={!isPublished}
+                                                className={`text-xs font-semibold flex items-center gap-1 ${isPublished ? 'text-indigo-600 hover:text-indigo-800' : 'text-slate-400 cursor-not-allowed'}`}
                                             >
-                                                {isExpanded ? 'Hide Details' : 'View Analysis'}
-                                                <i className={`fas ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-[10px]`}></i>
+                                                {!isPublished ? 'Results Pending' : isExpanded ? 'Hide Mistakes' : 'View Wrong Answers'}
+                                                {isPublished && <i className={`fas ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-[10px]`}></i>}
                                             </button>
                                         </div>
                                     </div>
+                                    {!isPublished && (
+                                        <div className="mt-3 bg-amber-50 text-amber-700 text-[11px] px-3 py-1.5 rounded-lg border border-amber-100 flex items-center gap-2">
+                                            <i className="fas fa-info-circle"></i>
+                                            Your results are being finalized by the teacher. Please check back later.
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Expanded Analysis */}
@@ -191,32 +209,84 @@ const StudentResults = ({ user, assessments = [], submissions = [] }) => {
                                             </div>
                                         )}
 
-                                        {/* Per-Question Breakdown */}
+                                        {/* Per-Question Wrong-Items-Only Breakdown */}
                                         {breakdown.length > 0 && (
                                             <div>
-                                                <p className="text-xs font-bold text-slate-500 uppercase mb-2">Question-wise Results</p>
-                                                <div className="space-y-2">
-                                                    {breakdown.map((b, i) => (
-                                                        <div key={i} className={`bg-white border rounded-xl p-3 ${b.correct === true ? 'border-emerald-200' : b.correct === false ? 'border-red-200' : 'border-slate-100'}`}>
-                                                            <div className="flex justify-between items-start">
-                                                                <div className="flex-1">
-                                                                    <p className="text-xs text-slate-400 mb-0.5">Q{b.questionIndex}</p>
-                                                                    <p className="text-xs text-slate-600">{b.feedback}</p>
-                                                                </div>
-                                                                <div className="text-right shrink-0 ml-3">
-                                                                    <p className="font-black text-slate-800 text-sm">{b.pointsAwarded}/{b.maxPoints}</p>
-                                                                    {b.correct !== undefined && (
-                                                                        <p className={`text-[10px] font-bold ${b.correct ? 'text-emerald-600' : 'text-red-500'}`}>
-                                                                            {b.correct ? '✓' : '✗'}
+                                                <p className="text-xs font-bold text-red-500 uppercase mb-2">Review Your Mistakes</p>
+                                                <div className="space-y-3">
+                                                    {breakdown.filter(b => b.pointsAwarded < b.maxPoints).map((b, i) => {
+                                                        const q = a.questions.find(origQ => origQ.id === b.questionId) || a.questions[b.questionIndex - 1];
+                                                        const isPartial = b.pointsAwarded > 0;
+                                                        return (
+                                                            <div key={i} className={`bg-white border rounded-xl p-4 shadow-sm ${isPartial ? 'border-amber-200' : 'border-red-200'}`}>
+                                                                <div className="flex justify-between items-start mb-3">
+                                                                    <div className="flex-1">
+                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                            <span className="text-xs font-bold text-slate-400">Q{b.questionIndex}</span>
+                                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${isPartial ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'}`}>
+                                                                                {isPartial ? 'Partially Correct' : 'Incorrect'}
+                                                                            </span>
+                                                                        </div>
+                                                                        <p className="text-sm font-bold text-slate-800 leading-tight">{q?.prompt}</p>
+                                                                    </div>
+                                                                    <div className="text-right shrink-0 ml-3">
+                                                                        <p className={`font-black text-sm ${isPartial ? 'text-amber-600' : 'text-rose-600'}`}>
+                                                                            {b.pointsAwarded}/{b.maxPoints}
                                                                         </p>
-                                                                    )}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="grid md:grid-cols-2 gap-3">
+                                                                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                                                                        <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Your Answer:</p>
+                                                                        <p className="text-sm text-slate-600 italic">
+                                                                            {q?.type === 'MCQ' ? q.options[sub.answers?.[q.id]] : sub.answers?.[q.id] || '(No Answer)'}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                                                                        <p className="text-[10px] font-bold text-emerald-700 uppercase mb-1">
+                                                                            {q?.type === 'MCQ' ? 'Correct Answer & Explanation:' : 'Reference Answer:'}
+                                                                        </p>
+                                                                        <p className="text-sm font-bold text-emerald-800 mb-2">
+                                                                            {q?.type === 'MCQ' ? q.options[q.correctOptionIndex] : (b.referenceAnswer || 'Refer to key concepts below')}
+                                                                        </p>
+
+                                                                        {/* Key Concepts for Descriptive */}
+                                                                        {q?.type === 'DESCRIPTIVE' && b.keyConcepts && b.keyConcepts.length > 0 && (
+                                                                            <div className="mt-2 pt-2 border-t border-emerald-200">
+                                                                                <p className="text-[10px] font-bold text-emerald-700 uppercase mb-1">Key Concepts Missing/Expected:</p>
+                                                                                <div className="flex flex-wrap gap-1">
+                                                                                    {b.keyConcepts.map((concept, idx) => (
+                                                                                        <span key={idx} className="bg-emerald-200 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                                                                            {concept}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+
+                                                                        <div className="mt-2 flex items-start gap-1">
+                                                                            <i className="fas fa-info-circle text-[10px] text-emerald-600 mt-0.5"></i>
+                                                                            <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                                                                                {b.feedback}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </div>
+                                                        );
+                                                    })}
+                                                    {breakdown.filter(b => b.pointsAwarded < b.maxPoints).length === 0 && (
+                                                        <div className="bg-emerald-50 text-emerald-700 p-8 rounded-2xl text-center border border-emerald-100">
+                                                            <i className="fas fa-star text-2xl mb-2"></i>
+                                                            <p className="font-bold">Perfect Score!</p>
+                                                            <p className="text-sm">You didn't miss any questions in this assessment.</p>
                                                         </div>
-                                                    ))}
+                                                    )}
                                                 </div>
                                             </div>
                                         )}
+
                                     </div>
                                 )}
                             </div>

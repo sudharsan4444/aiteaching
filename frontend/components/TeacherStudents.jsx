@@ -130,6 +130,7 @@ const TeacherStudents = ({ user }) => {
                 </button>
             </div>
 
+
             {showAddForm && (
                 <div className="bg-white p-6 rounded-2xl border-2 border-indigo-100 shadow-sm animate-in slide-in-from-top-4 duration-300">
                     <h3 className="text-lg font-bold text-slate-800 mb-4">Direct Student Registration</h3>

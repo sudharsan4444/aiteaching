@@ -7,8 +7,10 @@ const { evaluateSubmission } = require('../services/aiService');
 
 // Helper to compute letter grade from percentage
 const computeGrade = (score, maxScore) => {
-    if (!maxScore || maxScore === 0) return 'N/A';
-    const pct = (score / maxScore) * 100;
+    const s = parseFloat(score) || 0;
+    const ms = parseFloat(maxScore) || 0;
+    if (ms <= 0) return 'N/A';
+    const pct = (s / ms) * 100;
     if (pct >= 90) return 'A+';
     if (pct >= 80) return 'A';
     if (pct >= 70) return 'B';
@@ -66,7 +68,7 @@ router.post('/:id/submit', protect, authorize('STUDENT'), async (req, res) => {
         const assessment = await Assessment.findById(submission.assessmentId);
         if (assessment) {
             const evaluation = await evaluateSubmission(assessment.title, assessment.questions, answers);
-            submission.score = evaluation.score || 0;
+            submission.score = parseFloat(evaluation.score) || 0;
             submission.feedback = evaluation.feedback || '';
             submission.aiFeedbackBreakdown = evaluation.breakdown || evaluation;
             submission.grade = computeGrade(submission.score, submission.maxScore);
@@ -96,9 +98,23 @@ router.post('/:id/submit', protect, authorize('STUDENT'), async (req, res) => {
 router.get('/my', protect, async (req, res) => {
     try {
         const submissions = await Submission.find({ studentId: req.user.id })
-            .populate('assessmentId', 'title topic questions materialId')
+            .populate('assessmentId', 'title topic questions materialId isPublished')
             .sort({ submittedAt: -1 });
-        res.json(submissions);
+
+        // Filter sensitive data if results are not published
+        const filteredSubmissions = submissions.map(sub => {
+            const subObj = sub.toObject();
+            if (subObj.assessmentId && !subObj.assessmentId.isPublished) {
+                // If not published, hide the specific scores and feedback from the list
+                delete subObj.score;
+                delete subObj.grade;
+                delete subObj.feedback;
+                delete subObj.aiFeedbackBreakdown;
+                delete subObj.topicAnalysis;
+            }
+            return subObj;
+        });
+        res.json(filteredSubmissions);
     } catch (error) {
         res.status(500).json({ message: 'Server Error' });
     }

@@ -17,6 +17,7 @@ const USE_MOCK_DATA = false;
 
 const App = () => {
   const [user, setUser] = useState(null);
+  const [isTestActive, setIsTestActive] = useState(false);
   const [assessments, setAssessments] = useState([]);
   const [submissions, setSubmissions] = useState([]);
 
@@ -90,6 +91,10 @@ const App = () => {
     }
   };
 
+  const updateAssessment = (updated) => {
+    setAssessments(prev => prev.map(a => a._id === updated._id ? updated : a));
+  };
+
   const addSubmission = async (s) => {
     // StudentDashboard handles the API call to submit, 
     // but we need to update local state if we want immediate UI reflection.
@@ -104,7 +109,7 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Navigation user={user} onLogout={handleLogout} />
+      <Navigation user={user} onLogout={handleLogout} isTestActive={isTestActive} />
       <main className="max-w-7xl mx-auto px-4 py-8">
         {user.role === UserRole.TEACHER && (
           <TeacherDashboard
@@ -112,6 +117,7 @@ const App = () => {
             assessments={assessments}
             submissions={submissions}
             onAddAssessment={addAssessment}
+            onUpdateAssessment={updateAssessment}
           />
         )}
         {user.role === UserRole.STUDENT && (
@@ -120,6 +126,7 @@ const App = () => {
             assessments={assessments}
             submissions={submissions}
             onSubmitQuiz={addSubmission}
+            onTestStateChange={setIsTestActive}
           />
         )}
         {user.role === UserRole.ADMIN && (
